@@ -111,10 +111,17 @@ const Navbar = ({ user, onLogout }: { user: any, onLogout: () => void }) => {
 };
 
 const AuthPage = ({ onAuth }: { onAuth: (user: any) => void }) => {
-  const [isLogin, setIsLogin] = useState(true);
+  const navigate = useNavigate();
+  const location = window.location.pathname;
+  const isLogin = location !== '/register';
+  
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+
+  const toggleAuth = () => {
+    navigate(isLogin ? '/register' : '/login');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -188,7 +195,7 @@ const AuthPage = ({ onAuth }: { onAuth: (user: any) => void }) => {
 
         <p className="text-center mt-6 text-white/50">
           {isLogin ? "Non hai un account?" : "Hai già un account?"}{' '}
-          <button onClick={() => setIsLogin(!isLogin)} className="text-yellow-400 font-medium hover:underline">
+          <button onClick={toggleAuth} className="text-yellow-400 font-medium hover:underline">
             {isLogin ? 'Registrati' : 'Accedi'}
           </button>
         </p>
@@ -853,7 +860,11 @@ export default function App() {
         <main className="pb-20">
           <Routes>
             {!user ? (
-              <Route path="*" element={<AuthPage onAuth={setUser} />} />
+              <>
+                <Route path="/login" element={<AuthPage onAuth={setUser} />} />
+                <Route path="/register" element={<AuthPage onAuth={setUser} />} />
+                <Route path="*" element={<Navigate to="/login" />} />
+              </>
             ) : (
               <>
                 <Route path="/" element={<NightList />} />
