@@ -1,5 +1,4 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import postgres from 'postgres';
@@ -8,25 +7,31 @@ import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 
+dotenv.config();
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config();
-
-const connectionString = process.env.SSCORE_POSTGRES_URL_NON_POOLING
-  || process.env.SSCORE_POSTGRES_URL
-  || process.env.POSTGRES_URL;
+const connectionString =
+  process.env.SSCORE_POSTGRES_URL_NON_POOLING ||
+  process.env.SSCORE_POSTGRES_URL ||
+  process.env.POSTGRES_URL;
 
 if (!connectionString) {
   console.error('Missing database connection string. Set SSCORE_POSTGRES_URL_NON_POOLING in .env');
   process.exit(1);
 }
 
-const sql = postgres(connectionString, { ssl: 'require', max: 10 });
+const sql = postgres(connectionString, {
+  ssl: 'require',
+  // Serverless: una connessione per istanza; locale: pool più grande
+  max: process.env.VERCEL ? 1 : 10,
+  idle_timeout: process.env.VERCEL ? 20 : undefined,
+  connect_timeout: 10,
+});
 
 const JWT_SECRET = process.env.JWT_SECRET || 'sanremo-secret-2026';
 
-// Initialize Database
 async function initDb() {
   try {
     await sql`
@@ -76,208 +81,210 @@ async function initDb() {
   }
 }
 
-async function startServer() {
+// ─── Express App ─────────────────────────────────────────────────────────────
+
+const app = express();
+app.use(express.json({ limit: '5mb' }));
+app.use(cookieParser());
+
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Auth Middleware
+const authenticate = (req: any, res: any, next: any) => {
+  const token = req.cookies.token;
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+// Auth Routes
+app.post('/api/auth/register', async (req, res) => {
+  const { username, password } = req.body;
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const rows = await sql`
+      INSERT INTO users (username, password)
+      VALUES (${username}, ${hashedPassword})
+      RETURNING id;
+    `;
+    const userId = rows[0].id;
+    const token = jwt.sign({ id: userId, username }, JWT_SECRET);
+    res.cookie('token', token, { httpOnly: true, secure: isProduction, sameSite: 'lax' });
+    res.json({ id: userId, username });
+  } catch (err: any) {
+    console.error(err);
+    res.status(400).json({ error: 'Username already exists' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  const { username, password } = req.body;
+  try {
+    const rows = await sql`SELECT * FROM users WHERE username = ${username};`;
+    const user = rows[0];
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET);
+    res.cookie('token', token, { httpOnly: true, secure: isProduction, sameSite: 'lax' });
+    res.json({ id: user.id, username: user.username });
+  } catch (err) {
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  res.clearCookie('token', { httpOnly: true, secure: isProduction, sameSite: 'lax' });
+  res.json({ success: true });
+});
+
+app.get('/api/auth/me', authenticate, async (req: any, res) => {
+  try {
+    const rows = await sql`SELECT id, username, bio, profile_image FROM users WHERE id = ${req.user.id};`;
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
+app.post('/api/profile', authenticate, async (req: any, res) => {
+  const { bio, profile_image } = req.body;
+  try {
+    await sql`
+      UPDATE users
+      SET bio = ${bio}, profile_image = ${profile_image}
+      WHERE id = ${req.user.id};
+    `;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// Ratings Routes
+app.get('/api/ratings', authenticate, async (req: any, res) => {
+  try {
+    const rows = await sql`SELECT * FROM ratings WHERE user_id = ${req.user.id};`;
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch ratings' });
+  }
+});
+
+app.post('/api/ratings', authenticate, async (req: any, res) => {
+  const { night_id, artist_name, esibizione, outfit, testo, musica, intonazione, stile, cringe, comment } = req.body;
+  try {
+    await sql`
+      INSERT INTO ratings (user_id, night_id, artist_name, esibizione, outfit, testo, musica, intonazione, stile, cringe, comment)
+      VALUES (${req.user.id}, ${night_id}, ${artist_name}, ${esibizione}, ${outfit}, ${testo}, ${musica}, ${intonazione}, ${stile}, ${cringe}, ${comment})
+      ON CONFLICT(user_id, night_id, artist_name) DO UPDATE SET
+        esibizione=EXCLUDED.esibizione,
+        outfit=EXCLUDED.outfit,
+        testo=EXCLUDED.testo,
+        musica=EXCLUDED.musica,
+        intonazione=EXCLUDED.intonazione,
+        stile=EXCLUDED.stile,
+        cringe=EXCLUDED.cringe,
+        comment=EXCLUDED.comment;
+    `;
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save rating' });
+  }
+});
+
+// Compagnie Routes
+app.get('/api/compagnie', authenticate, async (req: any, res) => {
+  try {
+    const rows = await sql`
+      SELECT c.* FROM compagnie c
+      JOIN compagnia_members cm ON c.id = cm.compagnia_id
+      WHERE cm.user_id = ${req.user.id};
+    `;
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch compagnie' });
+  }
+});
+
+app.post('/api/compagnie', authenticate, async (req: any, res) => {
+  const { name } = req.body;
+  const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+  try {
+    const rows = await sql`
+      INSERT INTO compagnie (name, code, owner_id)
+      VALUES (${name}, ${code}, ${req.user.id})
+      RETURNING id;
+    `;
+    const compagniaId = rows[0].id;
+    await sql`
+      INSERT INTO compagnia_members (compagnia_id, user_id)
+      VALUES (${compagniaId}, ${req.user.id});
+    `;
+    res.json({ id: compagniaId, name, code });
+  } catch (err) {
+    res.status(400).json({ error: 'Compagnia name already exists' });
+  }
+});
+
+app.post('/api/compagnie/join', authenticate, async (req: any, res) => {
+  const { code } = req.body;
+  try {
+    const rows = await sql`SELECT id FROM compagnie WHERE code = ${code};`;
+    const compagnia = rows[0];
+    if (!compagnia) return res.status(404).json({ error: 'Compagnia not found' });
+
+    await sql`
+      INSERT INTO compagnia_members (compagnia_id, user_id)
+      VALUES (${compagnia.id}, ${req.user.id});
+    `;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: 'Already a member' });
+  }
+});
+
+app.get('/api/compagnie/:id/ratings', authenticate, async (req: any, res) => {
+  try {
+    const members = await sql`
+      SELECT u.id, u.username FROM users u
+      JOIN compagnia_members cm ON u.id = cm.user_id
+      WHERE cm.compagnia_id = ${req.params.id};
+    `;
+    const ratings = await sql`
+      SELECT r.*, u.username FROM ratings r
+      JOIN users u ON r.user_id = u.id
+      JOIN compagnia_members cm ON u.id = cm.user_id
+      WHERE cm.compagnia_id = ${req.params.id};
+    `;
+    res.json({ members, ratings });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch compagnia ratings' });
+  }
+});
+
+// ─── Avvio (locale) o export (Vercel) ────────────────────────────────────────
+
+if (process.env.VERCEL) {
+  // Su Vercel: init DB al cold start, poi il framework chiama `app` come handler
+  await initDb();
+} else {
+  // In locale: init DB, aggiungi Vite dev server o static, poi ascolta
   await initDb();
 
-  const app = express();
-  const PORT = 3000;
-
-  app.use(express.json({ limit: '5mb' }));
-  app.use(cookieParser());
-
-  // Auth Middleware
-  const authenticate = (req: any, res: any, next: any) => {
-    const token = req.cookies.token;
-    if (!token) return res.status(401).json({ error: 'Unauthorized' });
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      req.user = decoded;
-      next();
-    } catch (err) {
-      res.status(401).json({ error: 'Invalid token' });
-    }
-  };
-
-  const isProduction = process.env.NODE_ENV === 'production';
-
-  // Auth Routes
-  app.post('/api/auth/register', async (req, res) => {
-    const { username, password } = req.body;
-    try {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const rows = await sql`
-        INSERT INTO users (username, password)
-        VALUES (${username}, ${hashedPassword})
-        RETURNING id;
-      `;
-      const userId = rows[0].id;
-      const token = jwt.sign({ id: userId, username }, JWT_SECRET);
-      res.cookie('token', token, { httpOnly: true, secure: isProduction, sameSite: 'lax' });
-      res.json({ id: userId, username });
-    } catch (err: any) {
-      console.error(err);
-      res.status(400).json({ error: 'Username already exists' });
-    }
-  });
-
-  app.post('/api/auth/login', async (req, res) => {
-    const { username, password } = req.body;
-    try {
-      const rows = await sql`SELECT * FROM users WHERE username = ${username};`;
-      const user = rows[0];
-      if (!user || !(await bcrypt.compare(password, user.password))) {
-        return res.status(401).json({ error: 'Invalid credentials' });
-      }
-      const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET);
-      res.cookie('token', token, { httpOnly: true, secure: isProduction, sameSite: 'lax' });
-      res.json({ id: user.id, username: user.username });
-    } catch (err) {
-      res.status(500).json({ error: 'Login failed' });
-    }
-  });
-
-  app.post('/api/auth/logout', (req, res) => {
-    res.clearCookie('token', { httpOnly: true, secure: isProduction, sameSite: 'lax' });
-    res.json({ success: true });
-  });
-
-  app.get('/api/auth/me', authenticate, async (req: any, res) => {
-    try {
-      const rows = await sql`SELECT id, username, bio, profile_image FROM users WHERE id = ${req.user.id};`;
-      res.json(rows[0]);
-    } catch (err) {
-      res.status(500).json({ error: 'Failed to fetch user' });
-    }
-  });
-
-  app.post('/api/profile', authenticate, async (req: any, res) => {
-    const { bio, profile_image } = req.body;
-    try {
-      await sql`
-        UPDATE users
-        SET bio = ${bio}, profile_image = ${profile_image}
-        WHERE id = ${req.user.id};
-      `;
-      res.json({ success: true });
-    } catch (err) {
-      res.status(500).json({ error: 'Failed to update profile' });
-    }
-  });
-
-  // Ratings Routes
-  app.get('/api/ratings', authenticate, async (req: any, res) => {
-    try {
-      const rows = await sql`SELECT * FROM ratings WHERE user_id = ${req.user.id};`;
-      res.json(rows);
-    } catch (err) {
-      res.status(500).json({ error: 'Failed to fetch ratings' });
-    }
-  });
-
-  app.post('/api/ratings', authenticate, async (req: any, res) => {
-    const { night_id, artist_name, esibizione, outfit, testo, musica, intonazione, stile, cringe, comment } = req.body;
-    try {
-      await sql`
-        INSERT INTO ratings (user_id, night_id, artist_name, esibizione, outfit, testo, musica, intonazione, stile, cringe, comment)
-        VALUES (${req.user.id}, ${night_id}, ${artist_name}, ${esibizione}, ${outfit}, ${testo}, ${musica}, ${intonazione}, ${stile}, ${cringe}, ${comment})
-        ON CONFLICT(user_id, night_id, artist_name) DO UPDATE SET
-          esibizione=EXCLUDED.esibizione,
-          outfit=EXCLUDED.outfit,
-          testo=EXCLUDED.testo,
-          musica=EXCLUDED.musica,
-          intonazione=EXCLUDED.intonazione,
-          stile=EXCLUDED.stile,
-          cringe=EXCLUDED.cringe,
-          comment=EXCLUDED.comment;
-      `;
-      res.json({ success: true });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'Failed to save rating' });
-    }
-  });
-
-  // Compagnie Routes
-  app.get('/api/compagnie', authenticate, async (req: any, res) => {
-    try {
-      const rows = await sql`
-        SELECT c.* FROM compagnie c
-        JOIN compagnia_members cm ON c.id = cm.compagnia_id
-        WHERE cm.user_id = ${req.user.id};
-      `;
-      res.json(rows);
-    } catch (err) {
-      res.status(500).json({ error: 'Failed to fetch compagnie' });
-    }
-  });
-
-  app.post('/api/compagnie', authenticate, async (req: any, res) => {
-    const { name } = req.body;
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    try {
-      const rows = await sql`
-        INSERT INTO compagnie (name, code, owner_id)
-        VALUES (${name}, ${code}, ${req.user.id})
-        RETURNING id;
-      `;
-      const compagniaId = rows[0].id;
-      await sql`
-        INSERT INTO compagnia_members (compagnia_id, user_id)
-        VALUES (${compagniaId}, ${req.user.id});
-      `;
-      res.json({ id: compagniaId, name, code });
-    } catch (err) {
-      res.status(400).json({ error: 'Compagnia name already exists' });
-    }
-  });
-
-  app.post('/api/compagnie/join', authenticate, async (req: any, res) => {
-    const { code } = req.body;
-    try {
-      const rows = await sql`SELECT id FROM compagnie WHERE code = ${code};`;
-      const compagnia = rows[0];
-      if (!compagnia) return res.status(404).json({ error: 'Compagnia not found' });
-
-      await sql`
-        INSERT INTO compagnia_members (compagnia_id, user_id)
-        VALUES (${compagnia.id}, ${req.user.id});
-      `;
-      res.json({ success: true });
-    } catch (err) {
-      res.status(400).json({ error: 'Already a member' });
-    }
-  });
-
-  app.get('/api/compagnie/:id/ratings', authenticate, async (req: any, res) => {
-    try {
-      const members = await sql`
-        SELECT u.id, u.username FROM users u
-        JOIN compagnia_members cm ON u.id = cm.user_id
-        WHERE cm.compagnia_id = ${req.params.id};
-      `;
-
-      const ratings = await sql`
-        SELECT r.*, u.username FROM ratings r
-        JOIN users u ON r.user_id = u.id
-        JOIN compagnia_members cm ON u.id = cm.user_id
-        WHERE cm.compagnia_id = ${req.params.id};
-      `;
-
-      res.json({ members, ratings });
-    } catch (err) {
-      res.status(500).json({ error: 'Failed to fetch compagnia ratings' });
-    }
-  });
-
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== 'production') {
+  if (!isProduction) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
-
-    // SPA Fallback for development: serve index.html for any non-API route
     app.use('*', async (req, res, next) => {
       if (req.originalUrl.startsWith('/api')) return next();
       try {
@@ -296,9 +303,10 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  app.listen(3000, '0.0.0.0', () => {
+    console.log('Server running on http://localhost:3000');
   });
 }
 
-startServer();
+// Vercel usa questo export come serverless handler
+export default app;
