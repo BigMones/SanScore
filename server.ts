@@ -1,13 +1,28 @@
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
-import { sql } from '@vercel/postgres';
+import { fileURLToPath } from 'url';
+import postgres from 'postgres';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 dotenv.config();
+
+const connectionString = process.env.SSCORE_POSTGRES_URL_NON_POOLING
+  || process.env.SSCORE_POSTGRES_URL
+  || process.env.POSTGRES_URL;
+
+if (!connectionString) {
+  console.error('Missing database connection string. Set SSCORE_POSTGRES_URL_NON_POOLING in .env');
+  process.exit(1);
+}
+
+const sql = postgres(connectionString, { ssl: 'require', max: 10 });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'sanremo-secret-2026';
 
@@ -63,11 +78,11 @@ async function initDb() {
 
 async function startServer() {
   await initDb();
-  
+
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: '5mb' }));
   app.use(cookieParser());
 
   // Auth Middleware
@@ -83,19 +98,21 @@ async function startServer() {
     }
   };
 
+  const isProduction = process.env.NODE_ENV === 'production';
+
   // Auth Routes
   app.post('/api/auth/register', async (req, res) => {
     const { username, password } = req.body;
     try {
       const hashedPassword = await bcrypt.hash(password, 10);
-      const { rows } = await sql`
-        INSERT INTO users (username, password) 
-        VALUES (${username}, ${hashedPassword}) 
+      const rows = await sql`
+        INSERT INTO users (username, password)
+        VALUES (${username}, ${hashedPassword})
         RETURNING id;
       `;
       const userId = rows[0].id;
       const token = jwt.sign({ id: userId, username }, JWT_SECRET);
-      res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'none' });
+      res.cookie('token', token, { httpOnly: true, secure: isProduction, sameSite: 'lax' });
       res.json({ id: userId, username });
     } catch (err: any) {
       console.error(err);
@@ -106,13 +123,13 @@ async function startServer() {
   app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
     try {
-      const { rows } = await sql`SELECT * FROM users WHERE username = ${username};`;
+      const rows = await sql`SELECT * FROM users WHERE username = ${username};`;
       const user = rows[0];
       if (!user || !(await bcrypt.compare(password, user.password))) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
       const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET);
-      res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'none' });
+      res.cookie('token', token, { httpOnly: true, secure: isProduction, sameSite: 'lax' });
       res.json({ id: user.id, username: user.username });
     } catch (err) {
       res.status(500).json({ error: 'Login failed' });
@@ -120,13 +137,13 @@ async function startServer() {
   });
 
   app.post('/api/auth/logout', (req, res) => {
-    res.clearCookie('token');
+    res.clearCookie('token', { httpOnly: true, secure: isProduction, sameSite: 'lax' });
     res.json({ success: true });
   });
 
   app.get('/api/auth/me', authenticate, async (req: any, res) => {
     try {
-      const { rows } = await sql`SELECT id, username, bio, profile_image FROM users WHERE id = ${req.user.id};`;
+      const rows = await sql`SELECT id, username, bio, profile_image FROM users WHERE id = ${req.user.id};`;
       res.json(rows[0]);
     } catch (err) {
       res.status(500).json({ error: 'Failed to fetch user' });
@@ -137,8 +154,8 @@ async function startServer() {
     const { bio, profile_image } = req.body;
     try {
       await sql`
-        UPDATE users 
-        SET bio = ${bio}, profile_image = ${profile_image} 
+        UPDATE users
+        SET bio = ${bio}, profile_image = ${profile_image}
         WHERE id = ${req.user.id};
       `;
       res.json({ success: true });
@@ -150,7 +167,7 @@ async function startServer() {
   // Ratings Routes
   app.get('/api/ratings', authenticate, async (req: any, res) => {
     try {
-      const { rows } = await sql`SELECT * FROM ratings WHERE user_id = ${req.user.id};`;
+      const rows = await sql`SELECT * FROM ratings WHERE user_id = ${req.user.id};`;
       res.json(rows);
     } catch (err) {
       res.status(500).json({ error: 'Failed to fetch ratings' });
@@ -183,7 +200,7 @@ async function startServer() {
   // Compagnie Routes
   app.get('/api/compagnie', authenticate, async (req: any, res) => {
     try {
-      const { rows } = await sql`
+      const rows = await sql`
         SELECT c.* FROM compagnie c
         JOIN compagnia_members cm ON c.id = cm.compagnia_id
         WHERE cm.user_id = ${req.user.id};
@@ -198,14 +215,14 @@ async function startServer() {
     const { name } = req.body;
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     try {
-      const { rows } = await sql`
-        INSERT INTO compagnie (name, code, owner_id) 
-        VALUES (${name}, ${code}, ${req.user.id}) 
+      const rows = await sql`
+        INSERT INTO compagnie (name, code, owner_id)
+        VALUES (${name}, ${code}, ${req.user.id})
         RETURNING id;
       `;
       const compagniaId = rows[0].id;
       await sql`
-        INSERT INTO compagnia_members (compagnia_id, user_id) 
+        INSERT INTO compagnia_members (compagnia_id, user_id)
         VALUES (${compagniaId}, ${req.user.id});
       `;
       res.json({ id: compagniaId, name, code });
@@ -217,12 +234,12 @@ async function startServer() {
   app.post('/api/compagnie/join', authenticate, async (req: any, res) => {
     const { code } = req.body;
     try {
-      const { rows } = await sql`SELECT id FROM compagnie WHERE code = ${code};`;
+      const rows = await sql`SELECT id FROM compagnie WHERE code = ${code};`;
       const compagnia = rows[0];
       if (!compagnia) return res.status(404).json({ error: 'Compagnia not found' });
-      
+
       await sql`
-        INSERT INTO compagnia_members (compagnia_id, user_id) 
+        INSERT INTO compagnia_members (compagnia_id, user_id)
         VALUES (${compagnia.id}, ${req.user.id});
       `;
       res.json({ success: true });
@@ -233,13 +250,13 @@ async function startServer() {
 
   app.get('/api/compagnie/:id/ratings', authenticate, async (req: any, res) => {
     try {
-      const { rows: members } = await sql`
+      const members = await sql`
         SELECT u.id, u.username FROM users u
         JOIN compagnia_members cm ON u.id = cm.user_id
         WHERE cm.compagnia_id = ${req.params.id};
       `;
 
-      const { rows: ratings } = await sql`
+      const ratings = await sql`
         SELECT r.*, u.username FROM ratings r
         JOIN users u ON r.user_id = u.id
         JOIN compagnia_members cm ON u.id = cm.user_id
@@ -259,7 +276,7 @@ async function startServer() {
       appType: 'spa',
     });
     app.use(vite.middlewares);
-    
+
     // SPA Fallback for development: serve index.html for any non-API route
     app.use('*', async (req, res, next) => {
       if (req.originalUrl.startsWith('/api')) return next();
