@@ -31,6 +31,39 @@ export const ARTISTS = [
   "Francesco Renga"
 ];
 
+export const ARTIST_SONGS: Record<string, string> = {
+  "Raf": "Ora e per sempre",
+  "Tredici Pietro": "Uomo che cade",
+  "Tommaso Paradiso": "I romantici",
+  "Patty Pravo": "Opera",
+  "Fulminacci": "Stupida sfortuna",
+  "Luchè": "Labirinto",
+  "Arisa": "Magica favola",
+  "Serena Brancale": "Qui con me",
+  "Enrico Nigiotti": "Ogni volta che non so volare",
+  "LDA e AKA 7even": "Poesie clandestine",
+  "Malika Ayane": "Animali notturni",
+  "Mara Sattei": "Le cose che non sai di me",
+  "Sayf": "Tu mi piaci tanto",
+  "J-Ax": "Italia Starter Pack",
+  "Fedez e Marco Masini": "Male necessario",
+  "Levante": "Sei tu",
+  "Ditonellapiaga": "Che fastidio!",
+  "Samurai Jay": "Ossessione",
+  "Ermal Meta": "Stella stellina",
+  "Elettra Lamborghini": "Voilà",
+  "Sal Da Vinci": "Per sempre sì",
+  "Eddie Brock": "Avvoltoi",
+  "Dargen D'Amico": "Ai Ai",
+  "Nayt": "Prima che",
+  "Bambole di pezza": "Resta con me",
+  "Leo Gassmann": "Naturale",
+  "Maria Antonietta e Colombre": "La felicità e basta",
+  "Michele Bravi": "Prima o poi",
+  "Chiello": "Ti penso sempre",
+  "Francesco Renga": "Il meglio di me",
+};
+
 export const NIGHT_ARTISTS: Record<string, string[]> = {
   serata2: [
     "Patty Pravo",

@@ -75,6 +75,16 @@ async function initDb() {
         UNIQUE(user_id, night_id, artist_name)
       );
     `;
+    await sql`
+      CREATE TABLE IF NOT EXISTS streaming_ratings (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        artist_name TEXT,
+        song_name TEXT,
+        score REAL,
+        UNIQUE(user_id, artist_name)
+      );
+    `;
     console.log('Database initialized');
   } catch (err) {
     console.error('Database initialization failed:', err);
@@ -196,6 +206,51 @@ app.post('/api/ratings', authenticate, async (req: any, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to save rating' });
+  }
+});
+
+// Streaming Ratings Routes
+app.get('/api/streaming-ratings', authenticate, async (req: any, res) => {
+  try {
+    const rows = await sql`SELECT * FROM streaming_ratings WHERE user_id = ${req.user.id};`;
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch streaming ratings' });
+  }
+});
+
+app.post('/api/streaming-ratings', authenticate, async (req: any, res) => {
+  const { artist_name, song_name, score } = req.body;
+  try {
+    await sql`
+      INSERT INTO streaming_ratings (user_id, artist_name, song_name, score)
+      VALUES (${req.user.id}, ${artist_name}, ${song_name}, ${score})
+      ON CONFLICT(user_id, artist_name) DO UPDATE SET
+        song_name=EXCLUDED.song_name,
+        score=EXCLUDED.score;
+    `;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save streaming rating' });
+  }
+});
+
+app.get('/api/compagnie/:id/streaming-ratings', authenticate, async (req: any, res) => {
+  try {
+    const members = await sql`
+      SELECT u.id, u.username FROM users u
+      JOIN compagnia_members cm ON u.id = cm.user_id
+      WHERE cm.compagnia_id = ${req.params.id};
+    `;
+    const ratings = await sql`
+      SELECT sr.*, u.username FROM streaming_ratings sr
+      JOIN users u ON sr.user_id = u.id
+      JOIN compagnia_members cm ON u.id = cm.user_id
+      WHERE cm.compagnia_id = ${req.params.id};
+    `;
+    res.json({ members, ratings });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch compagnia streaming ratings' });
   }
 });
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
-import { Star, Users, User as UserIcon } from 'lucide-react';
+import { Star, Users, User as UserIcon, Headphones } from 'lucide-react';
 import { getCurrentUser, logoutUser } from './api/auth';
 import { Navbar } from './components/Navbar';
 import { AuthPage } from './pages/AuthPage';
@@ -8,6 +8,7 @@ import { NightList } from './pages/NightList';
 import { RatingPage } from './pages/RatingPage';
 import { CompagniaPage } from './pages/CompagniaPage';
 import { CompagniaDetail } from './pages/CompagniaDetail';
+import { StreamingPage } from './pages/StreamingPage';
 import { ProfilePage } from './pages/ProfilePage';
 
 export default function App() {
@@ -52,6 +53,7 @@ export default function App() {
               <>
                 <Route path="/" element={<NightList />} />
                 <Route path="/night/:nightId" element={<RatingPage />} />
+                <Route path="/streaming" element={<StreamingPage />} />
                 <Route path="/compagnie" element={<CompagniaPage />} />
                 <Route path="/compagnia/:id" element={<CompagniaDetail />} />
                 <Route path="/profile" element={<ProfilePage user={user} onUpdate={fetchUser} />} />
@@ -67,6 +69,10 @@ export default function App() {
             <Link to="/" className="flex flex-col items-center gap-1 text-white/60 hover:text-yellow-400 transition-colors">
               <Star size={24} />
               <span className="text-[10px] font-bold uppercase tracking-wider">Voti</span>
+            </Link>
+            <Link to="/streaming" className="flex flex-col items-center gap-1 text-white/60 hover:text-yellow-400 transition-colors">
+              <Headphones size={24} />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Streaming</span>
             </Link>
             <Link to="/compagnie" className="flex flex-col items-center gap-1 text-white/60 hover:text-yellow-400 transition-colors">
               <Users size={24} />

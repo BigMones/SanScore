@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { LogOut, Menu, X, User as UserIcon } from 'lucide-react';
+import { LogOut, Menu, X, User as UserIcon, Headphones } from 'lucide-react';
 import { Logo } from './Logo';
 
 interface NavbarProps {
@@ -24,6 +24,9 @@ export const Navbar = ({ user, onLogout }: NavbarProps) => {
           {user && (
             <div className="hidden md:flex items-center space-x-8">
               <Link to="/" className="hover:text-yellow-400 transition-colors">Pagelle</Link>
+              <Link to="/streaming" className="hover:text-yellow-400 transition-colors flex items-center gap-1.5">
+                <Headphones size={15} /> Streaming
+              </Link>
               <Link to="/compagnie" className="hover:text-yellow-400 transition-colors">Compagnie</Link>
               <Link to="/profile" className="hover:text-yellow-400 transition-colors">Profilo</Link>
               <div className="flex items-center space-x-4 border-l border-white/20 pl-8">
@@ -60,6 +63,9 @@ export const Navbar = ({ user, onLogout }: NavbarProps) => {
           >
             <div className="px-4 pt-2 pb-6 space-y-2">
               <Link to="/" onClick={() => setIsOpen(false)} className="block px-3 py-4 text-lg font-medium border-b border-white/5">Pagelle</Link>
+              <Link to="/streaming" onClick={() => setIsOpen(false)} className="flex items-center gap-2 px-3 py-4 text-lg font-medium border-b border-white/5">
+                <Headphones size={18} /> Streaming
+              </Link>
               <Link to="/compagnie" onClick={() => setIsOpen(false)} className="block px-3 py-4 text-lg font-medium border-b border-white/5">Compagnie</Link>
               <Link to="/profile" onClick={() => setIsOpen(false)} className="block px-3 py-4 text-lg font-medium border-b border-white/5">Profilo</Link>
               <div className="pt-4 flex items-center justify-between px-3">

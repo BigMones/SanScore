@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, Trophy } from 'lucide-react';
+import { ChevronLeft, Trophy, Headphones } from 'lucide-react';
 import { ARTISTS, NIGHT_ARTISTS, NIGHTS, CATEGORIES } from '../constants';
 import { getCompagniaRatings } from '../api/compagnie';
+import { getCompagniaStreamingRatings, StreamingRating } from '../api/streamingRatings';
 
 type DetailPopup = { rating?: any; ratings?: any[]; artist: string };
 
@@ -20,18 +21,59 @@ const CATEGORY_LABELS: Record<string, string> = {
 const calcTotal = (r: any) =>
   r.esibizione + r.outfit + r.testo + r.musica + r.intonazione + r.stile - r.cringe;
 
+/** Compute per-category award cards from a set of ratings */
+function buildAwards(ratings: any[], artistList: string[]) {
+  return CATEGORIES.map(cat => {
+    const avgs = artistList
+      .map(artist => {
+        const rs = ratings.filter(r => r.artist_name === artist);
+        if (!rs.length) return null;
+        return { artist, avg: rs.reduce((s, r) => s + (r[cat.id] ?? 0), 0) / rs.length };
+      })
+      .filter(Boolean) as { artist: string; avg: number }[];
+    if (!avgs.length) return null;
+    const winner = avgs.reduce((best, a) => a.avg > best.avg ? a : best);
+    return { cat, winner };
+  }).filter(Boolean) as { cat: typeof CATEGORIES[0]; winner: { artist: string; avg: number } }[];
+}
+
+const AwardCard = ({ cat, winner, i }: Omit<React.ComponentProps<'div'>, 'children'> & { cat: typeof CATEGORIES[0]; winner: { artist: string; avg: number }; i: number }) => {
+  const isCringe = cat.id === 'cringe';
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: i * 0.05 }}
+      className={`bg-[#0a0a2e] rounded-2xl p-4 border ${isCringe ? 'border-red-500/20 bg-red-950/10' : 'border-white/10'}`}
+    >
+      <p className={`text-xs font-bold uppercase tracking-wider mb-2 ${isCringe ? 'text-red-400' : 'text-yellow-400'}`}>
+        {CATEGORY_LABELS[cat.id]}
+      </p>
+      <p className="text-white font-semibold text-sm leading-tight mb-2">{winner.artist}</p>
+      <p className={`text-2xl font-black ${isCringe ? 'text-red-400' : 'text-yellow-400'}`}>
+        {winner.avg.toFixed(1)}
+      </p>
+    </motion.div>
+  );
+};
+
 export const CompagniaDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [data, setData] = useState<{ members: any[]; ratings: any[] } | null>(null);
+  const [streamingData, setStreamingData] = useState<{ members: any[]; ratings: StreamingRating[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedNight, setSelectedNight] = useState(NIGHTS[0].id);
   const [detailPopup, setDetailPopup] = useState<DetailPopup | null>(null);
 
   useEffect(() => {
-    getCompagniaRatings(id!)
-      .then(d => { if (d) setData(d); })
-      .finally(() => setLoading(false));
+    Promise.allSettled([
+      getCompagniaRatings(id!),
+      getCompagniaStreamingRatings(id!),
+    ]).then(([liveResult, sResult]) => {
+      if (liveResult.status === 'fulfilled' && liveResult.value) setData(liveResult.value);
+      if (sResult.status === 'fulfilled' && sResult.value) setStreamingData(sResult.value);
+    }).finally(() => setLoading(false));
   }, [id]);
 
   if (loading) {
@@ -44,6 +86,24 @@ export const CompagniaDetail = () => {
 
   const filteredRatings = data?.ratings.filter(r => r.night_id === selectedNight) || [];
   const artists = NIGHT_ARTISTS[selectedNight] ?? ARTISTS;
+
+  // Overall leaderboard: aggregate ALL nights across ALL artists
+  const overallAwards = buildAwards(data?.ratings ?? [], ARTISTS);
+
+  // Streaming winner: best avg score per artist across compagnia members
+  const streamingWinner = (() => {
+    const sr = streamingData?.ratings ?? [];
+    if (!sr.length) return null;
+    const byArtist = ARTISTS.map(artist => {
+      const rs = sr.filter(r => r.artist_name === artist);
+      if (!rs.length) return null;
+      const avg = rs.reduce((s, r) => s + r.score, 0) / rs.length;
+      const songNames = [...new Set(rs.map(r => r.song_name))].join(' / ');
+      return { artist, avg, songNames };
+    }).filter(Boolean) as { artist: string; avg: number; songNames: string }[];
+    if (!byArtist.length) return null;
+    return byArtist.reduce((best, a) => a.avg > best.avg ? a : best);
+  })();
 
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-8">
@@ -70,6 +130,67 @@ export const CompagniaDetail = () => {
           ))}
         </div>
       </div>
+
+<div className="space-y-10 mb-6">
+ {/* Per-night leaderboard */}
+      {filteredRatings.length > 0 && (() => {
+        const awards = buildAwards(filteredRatings, artists);
+        if (!awards.length) return null;
+        return (
+          <div className="mt-8">
+            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+              <Trophy size={20} className="text-yellow-400" />
+              Premi della Serata
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {awards.map(({ cat, winner }, i) => (
+                <AwardCard key={cat.id} cat={cat} winner={winner} i={i} />
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Overall leaderboard (all nights) */}
+      {data?.ratings && data.ratings.length > 0 && (
+        <div className="mt-10 my-auto">
+          <h2 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+            <Trophy size={20} className="text-yellow-400" />
+            Classifica Generale
+          </h2>
+          <p className="text-white/40 text-sm mb-4">Vincitori aggregati di tutte le serate</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {overallAwards.length > 0 ? overallAwards.map(({ cat, winner }, i) => (
+              <AwardCard key={cat.id} cat={cat} winner={winner} i={i} />
+            )) : (
+              <div className="col-span-full text-center py-8 text-white/40">
+                Nessun premio disponibile ancora
+              </div>
+            )}
+
+            {/* Streaming winner card */}
+            {streamingWinner && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: overallAwards.length * 0.05 }}
+                className="bg-[#0a0a2e] rounded-2xl p-4 border border-purple-500/30 bg-purple-950/10"
+              >
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Headphones size={12} className="text-purple-400" />
+                  <p className="text-xs font-bold uppercase tracking-wider text-purple-400">
+                    Migliore Streaming
+                  </p>
+                </div>
+                <p className="text-white font-semibold text-sm leading-tight mb-1">{streamingWinner.artist}</p>
+                <p className="text-white/40 text-xs mb-2 truncate">"{streamingWinner.songNames}"</p>
+                <p className="text-2xl font-black text-purple-400">{streamingWinner.avg.toFixed(1)}</p>
+              </motion.div>
+            )}
+          </div>
+        </div>
+      )}
+</div>
 
       {/* Ratings table */}
       <div className="bg-[#0a0a2e] rounded-3xl border border-white/10 overflow-hidden shadow-2xl">
@@ -139,53 +260,7 @@ export const CompagniaDetail = () => {
         </div>
       </div>
 
-      {/* Leaderboard */}
-      {filteredRatings.length > 0 && (() => {
-        const awards = CATEGORIES.map(cat => {
-          const avgs = artists
-            .map(artist => {
-              const rs = filteredRatings.filter(r => r.artist_name === artist);
-              if (!rs.length) return null;
-              return { artist, avg: rs.reduce((s, r) => s + (r[cat.id] ?? 0), 0) / rs.length };
-            })
-            .filter(Boolean) as { artist: string; avg: number }[];
-          if (!avgs.length) return null;
-          const winner = avgs.reduce((best, a) => a.avg > best.avg ? a : best);
-          return { cat, winner };
-        }).filter(Boolean) as { cat: typeof CATEGORIES[0]; winner: { artist: string; avg: number } }[];
-
-        if (!awards.length) return null;
-        return (
-          <div className="mt-8">
-            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-              <Trophy size={20} className="text-yellow-400" />
-              Premi della Serata
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {awards.map(({ cat, winner }, i) => {
-                const isCringe = cat.id === 'cringe';
-                return (
-                  <motion.div
-                    key={cat.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    className={`bg-[#0a0a2e] rounded-2xl p-4 border ${isCringe ? 'border-red-500/20 bg-red-950/10' : 'border-white/10'}`}
-                  >
-                    <p className={`text-xs font-bold uppercase tracking-wider mb-2 ${isCringe ? 'text-red-400' : 'text-yellow-400'}`}>
-                      {CATEGORY_LABELS[cat.id]}
-                    </p>
-                    <p className="text-white font-semibold text-sm leading-tight mb-2">{winner.artist}</p>
-                    <p className={`text-2xl font-black ${isCringe ? 'text-red-400' : 'text-yellow-400'}`}>
-                      {winner.avg.toFixed(1)}
-                    </p>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })()}
+     
 
       {/* Rating Detail Popup */}
       <AnimatePresence>
