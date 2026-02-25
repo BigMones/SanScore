@@ -31,6 +31,26 @@ export const ARTISTS = [
   "Francesco Renga"
 ];
 
+export const NIGHT_ARTISTS: Record<string, string[]> = {
+  serata2: [
+    "Patty Pravo",
+    "LDA e AKA 7even",
+    "Enrico Nigiotti",
+    "Tommaso Paradiso",
+    "Elettra Lamborghini",
+    "Ermal Meta",
+    "Levante",
+    "Bambole di pezza",
+    "Chiello",
+    "J-Ax",
+    "Nayt",
+    "Fulminacci",
+    "Fedez e Marco Masini",
+    "Dargen D'Amico",
+    "Ditonellapiaga",
+  ],
+};
+
 export const NIGHTS = [
   { id: 'serata1', name: 'Serata 1', type: 'standard' },
   { id: 'serata2', name: 'Serata 2', type: 'standard' },
