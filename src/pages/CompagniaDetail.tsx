@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, Trophy, Headphones } from 'lucide-react';
+import { ChevronLeft, ChevronDown, Trophy, Headphones } from 'lucide-react';
 import { ARTISTS, NIGHT_ARTISTS, NIGHTS, CATEGORIES } from '../constants';
 import { getCompagniaRatings } from '../api/compagnie';
 import { getCompagniaStreamingRatings, StreamingRating } from '../api/streamingRatings';
@@ -65,6 +65,8 @@ export const CompagniaDetail = () => {
   const [loading, setLoading] = useState(true);
   const [selectedNight, setSelectedNight] = useState(NIGHTS[0].id);
   const [detailPopup, setDetailPopup] = useState<DetailPopup | null>(null);
+  const [mobileMemberIdx, setMobileMemberIdx] = useState(0);
+  const [memberMenuOpen, setMemberMenuOpen] = useState(false);
 
   useEffect(() => {
     Promise.allSettled([
@@ -192,8 +194,94 @@ export const CompagniaDetail = () => {
       )}
 </div>
 
-      {/* Ratings table */}
-      <div className="bg-[#0a0a2e] rounded-3xl border border-white/10 overflow-hidden shadow-2xl">
+      {/* Ratings table — mobile: 3 colonne con selettore membro */}
+      <div className="md:hidden bg-[#0a0a2e] rounded-3xl border border-white/10 shadow-2xl">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-white/5">
+              <th className="p-4 text-xs font-bold uppercase tracking-wider text-white/40 border-b border-white/10">Artista</th>
+              <th className="p-4 border-b border-white/10 text-center relative">
+                {data?.members && data.members.length > 0 && (
+                  <>
+                    <button
+                      onClick={() => setMemberMenuOpen(v => !v)}
+                      className="flex items-center gap-1 mx-auto text-xs font-bold uppercase tracking-wider text-white/40 hover:text-white/70 transition-colors"
+                    >
+                      <span>{data.members[mobileMemberIdx]?.username}</span>
+                      <ChevronDown size={12} className={`transition-transform ${memberMenuOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {memberMenuOpen && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setMemberMenuOpen(false)} />
+                        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-[#0e0e38] border border-white/10 rounded-xl shadow-2xl z-50 min-w-[130px] overflow-hidden">
+                          {data.members.map((m, i) => (
+                            <button
+                              key={m.id}
+                              onClick={() => { setMobileMemberIdx(i); setMemberMenuOpen(false); }}
+                              className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors ${i === mobileMemberIdx ? 'text-yellow-400 bg-yellow-400/10' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+                            >
+                              {m.username}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+              </th>
+              <th className="p-4 text-xs font-bold uppercase tracking-wider text-yellow-400 border-b border-white/10 text-center">Media</th>
+            </tr>
+          </thead>
+          <tbody>
+            {artists.map((artist, idx) => {
+              const artistRatings = filteredRatings.filter(r => r.artist_name === artist);
+              const avg = artistRatings.length > 0
+                ? artistRatings.reduce((acc, r) => acc + calcTotal(r), 0) / artistRatings.length
+                : 0;
+              const selectedMember = data?.members?.[mobileMemberIdx];
+              const r = selectedMember ? artistRatings.find(ar => ar.user_id === selectedMember.id) : null;
+              const total = r ? calcTotal(r) : null;
+              return (
+                <tr key={artist} className="hover:bg-white/5 transition-colors border-b border-white/5">
+                  <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/20 text-xs font-mono">{idx + 1}</span>
+                      <span className="font-bold text-white text-sm">{artist}</span>
+                    </div>
+                  </td>
+                  <td className="p-4 text-center">
+                    {total !== null ? (
+                      <button
+                        onClick={() => setDetailPopup({ rating: r, artist })}
+                        className="text-white font-bold hover:text-yellow-400 hover:underline underline-offset-2 transition-colors"
+                      >
+                        {total.toFixed(1)}
+                      </button>
+                    ) : (
+                      <span className="text-white/10">-</span>
+                    )}
+                  </td>
+                  <td className="p-4 text-center bg-yellow-400/5">
+                    {avg > 0 ? (
+                      <button
+                        onClick={() => setDetailPopup({ ratings: artistRatings, artist })}
+                        className="font-black text-lg text-yellow-400 hover:text-yellow-300 hover:underline underline-offset-2 transition-colors"
+                      >
+                        {avg.toFixed(1)}
+                      </button>
+                    ) : (
+                      <span className="font-black text-lg text-white/10">-</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Ratings table — desktop: tutte le colonne */}
+      <div className="hidden md:block bg-[#0a0a2e] rounded-3xl border border-white/10 overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -213,7 +301,6 @@ export const CompagniaDetail = () => {
                 const avg = artistRatings.length > 0
                   ? artistRatings.reduce((acc, r) => acc + calcTotal(r), 0) / artistRatings.length
                   : 0;
-
                 return (
                   <tr key={artist} className="hover:bg-white/5 transition-colors border-b border-white/5">
                     <td className="p-4">

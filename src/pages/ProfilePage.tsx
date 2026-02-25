@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React,{ useState } from 'react';
 import { motion } from 'motion/react';
 import { Camera, User as UserIcon } from 'lucide-react';
 import { updateProfile } from '../api/profile';

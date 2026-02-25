@@ -24,8 +24,11 @@ export default function App() {
   useEffect(fetchUser, []);
 
   const handleLogout = async () => {
-    await logoutUser();
-    setUser(null);
+    try {
+      await logoutUser();
+    } finally {
+      setUser(null);
+    }
   };
 
   if (loading) {
