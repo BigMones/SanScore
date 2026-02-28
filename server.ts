@@ -624,6 +624,23 @@ app.get('/api/compagnie/:id/ratings', authenticate, async (req: any, res) => {
   }
 });
 
+app.get('/api/stats', authenticate, async (_req, res) => {
+  try {
+    const voterRows = await sql`SELECT COUNT(DISTINCT user_id)::int AS count FROM ratings`;
+    const ratings = await sql`
+      SELECT r.*, u.username FROM ratings r
+      JOIN users u ON r.user_id = u.id
+    `;
+    const streamingRatings = await sql`
+      SELECT sr.*, u.username FROM streaming_ratings sr
+      JOIN users u ON sr.user_id = u.id
+    `;
+    res.json({ voters: voterRows[0].count, ratings, streamingRatings });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
 // ─── Avvio (locale) o export (Vercel) ────────────────────────────────────────
 
 if (process.env.VERCEL) {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
-import { Star, Users, User as UserIcon, Headphones } from 'lucide-react';
+import { Star, Users, User as UserIcon, Headphones, BarChart3 } from 'lucide-react';
 import { getCurrentUser, logoutUser } from './api/auth';
 import { Navbar } from './components/Navbar';
 import { AuthPage } from './pages/AuthPage';
@@ -9,6 +9,7 @@ import { RatingPage } from './pages/RatingPage';
 import { CompagniaPage } from './pages/CompagniaPage';
 import { CompagniaDetail } from './pages/CompagniaDetail';
 import { StreamingPage } from './pages/StreamingPage';
+import { StatsPage } from './pages/StatsPage';
 import { ProfilePage } from './pages/ProfilePage';
 
 export default function App() {
@@ -59,6 +60,7 @@ export default function App() {
                 <Route path="/streaming" element={<StreamingPage />} />
                 <Route path="/compagnie" element={<CompagniaPage />} />
                 <Route path="/compagnia/:id" element={<CompagniaDetail />} />
+                <Route path="/stats" element={<StatsPage />} />
                 <Route path="/profile" element={<ProfilePage user={user} onUpdate={fetchUser} />} />
                 <Route path="*" element={<Navigate to="/" />} />
               </>
@@ -78,11 +80,15 @@ export default function App() {
               <span className="text-[10px] font-bold uppercase tracking-wider">Streaming</span>
             </Link>
             <Link to="/compagnie" className="flex flex-col items-center gap-1 text-white/60 hover:text-yellow-400 transition-colors">
-              <Users size={24} />
+              <Users size={22} />
               <span className="text-[10px] font-bold uppercase tracking-wider">Social</span>
             </Link>
+            <Link to="/stats" className="flex flex-col items-center gap-1 text-white/60 hover:text-yellow-400 transition-colors">
+              <BarChart3 size={22} />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Classifica</span>
+            </Link>
             <Link to="/profile" className="flex flex-col items-center gap-1 text-white/60 hover:text-yellow-400 transition-colors">
-              <UserIcon size={24} />
+              <UserIcon size={22} />
               <span className="text-[10px] font-bold uppercase tracking-wider">Profilo</span>
             </Link>
           </div>
