@@ -1,13 +1,153 @@
 <!doctype html>
-<html lang="en">
+<html lang="it">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
     <title>SanScore</title>
+    <meta name="description" content="Vota le tue canzoni preferite di Sanremo 2026 con i tuoi amici" />
+
+    <!-- ═══════════════════════════════════════════════════
+         PWA — Manifest + Theme
+    ════════════════════════════════════════════════════ -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#facc15" />
+
+    <!-- ═══════════════════════════════════════════════════
+         ANDROID / Chrome
+    ════════════════════════════════════════════════════ -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- L'icona con purpose="maskable" nel manifest viene usata
+         per i launcher Android con icone adattive (squircle, cerchio, ecc.) -->
+
+    <!-- ═══════════════════════════════════════════════════
+         APPLE / iOS  — "Add to Home Screen"
+         Nota: iOS non usa il manifest per icone e splash screen,
+         serve tutto via <meta> e <link> nel HTML.
+    ════════════════════════════════════════════════════ -->
+
+    <!-- Abilita modalità standalone su iOS (nasconde barra URL Safari) -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+
+    <!-- Colore status bar:
+         "default"           → bianco
+         "black"             → nero
+         "black-translucent" → trasparente (sovrappone il contenuto sotto la status bar,
+                               usa viewport-fit=cover + padding-top env(safe-area-inset-top)) -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- Nome dell'app nella home screen iOS -->
+    <meta name="apple-mobile-web-app-title" content="SanScore" />
+
+    <!-- ── Apple Touch Icons ──────────────────────────────
+         iOS usa la versione più grande disponibile ≤ dimensione richiesta.
+         Genera i PNG dall'SVG con: npx pwa-asset-generator public/icons/icon.svg public/icons
+         oppure con: https://realfavicongenerator.net
+    ─────────────────────────────────────────────────── -->
+    <!-- Default (180×180, usato da iPhone 6+, iOS 8+) -->
+    <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+    <!-- iPhone retina (120×120) -->
+    <link rel="apple-touch-icon" sizes="120x120" href="/icons/icon-120.png" />
+    <!-- iPad (152×152) -->
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png" />
+    <!-- iPad Pro (167×167) -->
+    <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-167.png" />
+    <!-- iPhone 6 Plus / retina (180×180) -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png" />
+
+    <!-- ── Apple Splash Screens (Startup Images) ─────────
+         Ogni device ha risoluzione diversa. Genera con:
+           npx pwa-asset-generator public/icons/icon.svg public/icons --splash-only --index index.html
+         oppure aggiungi manualmente i tag qui sotto dopo aver generato le immagini.
+
+         Formato del media query:
+           (device-width: WDPpx) and (device-height: HDPpx)
+           and (-webkit-device-pixel-ratio: DPR)
+           and (orientation: portrait)
+
+         Le misure qui sotto sono quelle più comuni (2025/2026):
+    ─────────────────────────────────────────────────── -->
+
+    <!-- iPhone SE 2nd/3rd gen (375×667 @2x) -->
+    <link rel="apple-touch-startup-image"
+      media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="/icons/splash-750x1334.png" />
+
+    <!-- iPhone 8 / SE (390×844 = no, questo è iPhone 12 mini) -->
+    <!-- iPhone 8 Plus (414×736 @3x) -->
+    <link rel="apple-touch-startup-image"
+      media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="/icons/splash-1242x2208.png" />
+
+    <!-- iPhone X / XS (375×812 @3x) -->
+    <link rel="apple-touch-startup-image"
+      media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="/icons/splash-1125x2436.png" />
+
+    <!-- iPhone XR / 11 (414×896 @2x) -->
+    <link rel="apple-touch-startup-image"
+      media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="/icons/splash-828x1792.png" />
+
+    <!-- iPhone XS Max / 11 Pro Max (414×896 @3x) -->
+    <link rel="apple-touch-startup-image"
+      media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="/icons/splash-1242x2688.png" />
+
+    <!-- iPhone 12 / 13 / 14 (390×844 @3x) -->
+    <link rel="apple-touch-startup-image"
+      media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="/icons/splash-1170x2532.png" />
+
+    <!-- iPhone 12/13 mini (375×812 @3x — stessa di X/XS) -->
+    <!-- iPhone 12/13/14 Pro Max, 14 Plus (428×926 @3x) -->
+    <link rel="apple-touch-startup-image"
+      media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="/icons/splash-1284x2778.png" />
+
+    <!-- iPhone 14 Pro (393×852 @3x) -->
+    <link rel="apple-touch-startup-image"
+      media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="/icons/splash-1179x2556.png" />
+
+    <!-- iPhone 14 Pro Max / 15 Plus / 15 Pro Max (430×932 @3x) -->
+    <link rel="apple-touch-startup-image"
+      media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="/icons/splash-1290x2796.png" />
+
+    <!-- iPhone 15 / 15 Pro (393×852 @3x — stessa di 14 Pro) -->
+
+    <!-- iPad Air / Mini (768×1024 @2x) -->
+    <link rel="apple-touch-startup-image"
+      media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="/icons/splash-1536x2048.png" />
+
+    <!-- iPad Pro 11" (834×1194 @2x) -->
+    <link rel="apple-touch-startup-image"
+      media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="/icons/splash-1668x2388.png" />
+
+    <!-- iPad Pro 12.9" (1024×1366 @2x) -->
+    <link rel="apple-touch-startup-image"
+      media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="/icons/splash-2048x2732.png" />
+
+    <!-- ═══════════════════════════════════════════════════
+         MICROSOFT / Windows (tile per Store e IE pinned sites)
+    ════════════════════════════════════════════════════ -->
+    <meta name="msapplication-TileColor" content="#05051a" />
+    <meta name="msapplication-TileImage" content="/icons/icon-144.png" />
+    <meta name="msapplication-config" content="none" />
+
+    <!-- ═══════════════════════════════════════════════════
+         Favicon standard + fallback browser
+    ════════════════════════════════════════════════════ -->
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png" />
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

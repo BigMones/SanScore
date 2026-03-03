@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#05051a"/>
+  <!-- Star (5 punte, giallo SanScore) -->
+  <polygon
+    points="256,86 295.9,201 417.7,203.5 320.7,277 355.9,393.6 256,324 156.1,393.6 191.3,277 94.3,203.5 216.1,201"
+    fill="#facc15"
+  />
+</svg>
