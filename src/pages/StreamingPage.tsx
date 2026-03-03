@@ -142,6 +142,7 @@ export const StreamingPage = () => {
                           step="0.5"
                           value={score}
                           onChange={e => setScore(parseFloat(e.target.value))}
+                          aria-label="Voto Streaming"
                           className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-yellow-400"
                         />
                         <div className="flex justify-between text-xs text-white/20 mt-1">

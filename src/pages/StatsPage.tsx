@@ -51,7 +51,7 @@ export const StatsPage = () => {
             <p className="text-white/60">Ancora nessun voto</p>
           </div>
         </div>
-        <div className="text-center py-16 text-white/30">Nessun voto ancora</div>
+        <div className="text-center py-16 text-white/50">Nessun voto ancora</div>
       </div>
     );
   }
@@ -94,7 +94,7 @@ export const StatsPage = () => {
     .sort((a: any, b: any) => b.avg - a.avg) as { artist: string; votes: number; avg: number; song: string }[];
 
   const medal = (i: number) =>
-    i === 0 ? 'bg-yellow-400 text-[#0a0a2e]' : i === 1 ? 'bg-white/20 text-white' : i === 2 ? 'bg-amber-700/50 text-amber-200' : 'bg-white/5 text-white/30';
+    i === 0 ? 'bg-yellow-400 text-[#0a0a2e]' : i === 1 ? 'bg-white/20 text-white' : i === 2 ? 'bg-amber-700/50 text-amber-200' : 'bg-white/5 text-white/50';
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-8 space-y-10">
@@ -133,7 +133,7 @@ export const StatsPage = () => {
                     {i + 1}
                   </span>
                   <span className="font-bold text-white text-sm">{a.artist}</span>
-                  <span className="text-white/25 text-xs hidden sm:inline">({a.votes} voti)</span>
+                  <span className="text-white/50 text-xs hidden sm:inline">({a.votes} voti)</span>
                 </div>
                 <span className={`font-black text-lg ${i === 0 ? 'text-yellow-400' : 'text-white/60'}`}>
                   {a.avg.toFixed(1)}
@@ -143,7 +143,7 @@ export const StatsPage = () => {
           </div>
         </div>
       ) : (
-        <div className="text-center py-16 text-white/30">Nessun voto ancora</div>
+        <div className="text-center py-16 text-white/50">Nessun voto ancora</div>
       )}
 
       {/* Premi per categoria */}
@@ -195,12 +195,12 @@ export const StatsPage = () => {
                 className={`flex items-center justify-between px-5 py-3.5 border-b border-white/5 last:border-0 ${i === 0 ? 'bg-purple-500/5' : ''}`}
               >
                 <div className="flex items-center gap-3">
-                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black ${i === 0 ? 'bg-purple-400 text-white' : i === 1 ? 'bg-white/20 text-white' : i === 2 ? 'bg-purple-900/50 text-purple-300' : 'bg-white/5 text-white/30'}`}>
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black ${i === 0 ? 'bg-purple-400 text-white' : i === 1 ? 'bg-white/20 text-white' : i === 2 ? 'bg-purple-900/50 text-purple-300' : 'bg-white/5 text-white/50'}`}>
                     {i + 1}
                   </span>
                   <div>
                     <p className="font-bold text-white text-sm">{a.artist}</p>
-                    <p className="text-white/35 text-xs">"{a.song}" · {a.votes} voti</p>
+                    <p className="text-white/50 text-xs">"{a.song}" · {a.votes} voti</p>
                   </div>
                 </div>
                 <span className={`font-black text-lg ${i === 0 ? 'text-purple-400' : 'text-white/60'}`}>

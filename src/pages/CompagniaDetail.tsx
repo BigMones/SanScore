@@ -110,7 +110,7 @@ export const CompagniaDetail = () => {
 
       {/* Header */}
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate('/compagnie')} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+        <button onClick={() => navigate('/compagnie')} aria-label="Torna alle compagnie" className="p-2.5 hover:bg-white/10 rounded-full transition-colors">
           <ChevronLeft className="text-white" />
         </button>
         <div>
@@ -194,24 +194,24 @@ export const CompagniaDetail = () => {
                         {overallAvg > 0 && (
                           <div className="text-right">
                             <p className="text-yellow-400 font-black text-xl">{overallAvg.toFixed(1)}</p>
-                            <p className="text-white/30 text-xs">media</p>
+                            <p className="text-white/50 text-xs">media</p>
                           </div>
                         )}
                       </div>
 
                       {shown.length === 0 ? (
-                        <p className="text-white/20 text-sm text-center py-4">Nessun voto ancora</p>
+                        <p className="text-white/50 text-sm text-center py-4">Nessun voto ancora</p>
                       ) : (
                         <div className="space-y-2">
                           {shown.map((a, i) => (
                             <div key={a.artist} className="flex items-center gap-2">
-                              <span className="text-white/20 text-xs font-mono w-4 text-right flex-shrink-0">{i + 1}</span>
+                              <span className="text-white/40 text-xs font-mono w-4 text-right flex-shrink-0">{i + 1}</span>
                               <span className="text-white/80 text-sm flex-1 truncate">{a.artist}</span>
                               <span className="text-yellow-400 font-bold text-sm tabular-nums flex-shrink-0">{a.avg.toFixed(1)}</span>
                             </div>
                           ))}
                           {rest > 0 && (
-                            <p className="text-white/25 text-xs text-center pt-1">... e altri {rest}</p>
+                            <p className="text-white/50 text-xs text-center pt-1">... e altri {rest}</p>
                           )}
                         </div>
                       )}
@@ -297,7 +297,7 @@ export const CompagniaDetail = () => {
                             <tr key={artist} className="hover:bg-white/5 transition-colors border-b border-white/5">
                               <td className="p-4">
                                 <div className="flex items-center gap-3">
-                                  <span className="text-white/20 text-xs font-mono">{idx + 1}</span>
+                                  <span className="text-white/40 text-xs font-mono">{idx + 1}</span>
                                   <span className="font-bold text-white text-sm">{artist}</span>
                                 </div>
                               </td>
@@ -422,7 +422,7 @@ export const CompagniaDetail = () => {
                           <tr key={artist} className="hover:bg-white/5 transition-colors border-b border-white/5">
                             <td className="p-4">
                               <div className="flex items-center gap-2">
-                                <span className="text-white/20 text-xs font-mono">{idx + 1}</span>
+                                <span className="text-white/40 text-xs font-mono">{idx + 1}</span>
                                 <span className="font-bold text-white text-sm">{artist}</span>
                               </div>
                             </td>
@@ -473,7 +473,7 @@ export const CompagniaDetail = () => {
                           <tr key={artist} className="hover:bg-white/5 transition-colors border-b border-white/5">
                             <td className="p-3 sticky left-0 bg-[#0a0a2e]">
                               <div className="flex items-center gap-2">
-                                <span className="text-white/20 text-xs font-mono">{idx + 1}</span>
+                                <span className="text-white/40 text-xs font-mono">{idx + 1}</span>
                                 <span className="font-bold text-white text-sm whitespace-nowrap">{artist}</span>
                               </div>
                             </td>
@@ -533,7 +533,7 @@ export const CompagniaDetail = () => {
                         <tr key={artist} className="hover:bg-white/5 transition-colors border-b border-white/5">
                           <td className="p-4">
                             <div className="flex items-center gap-3">
-                              <span className="text-white/20 text-xs font-mono">{idx + 1}</span>
+                              <span className="text-white/40 text-xs font-mono">{idx + 1}</span>
                               <span className="font-bold text-white">{artist}</span>
                             </div>
                           </td>
@@ -567,7 +567,7 @@ export const CompagniaDetail = () => {
           )}
 
           {filteredRatings.length === 0 && (
-            <div className="text-center py-16 text-white/30">
+            <div className="text-center py-16 text-white/50">
               Nessun voto per questa serata
             </div>
           )}
@@ -650,7 +650,7 @@ export const CompagniaDetail = () => {
 
               {detailPopup.rating?.comment && (
                 <div className="bg-white/5 rounded-xl px-4 py-3 mb-4">
-                  <p className="text-xs uppercase tracking-widest text-white/30 mb-1 font-mono">note</p>
+                  <p className="text-xs uppercase tracking-widest text-white/50 mb-1 font-mono">note</p>
                   <p className="text-white/80 text-sm leading-relaxed">{detailPopup.rating.comment}</p>
                 </div>
               )}

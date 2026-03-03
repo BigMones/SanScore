@@ -56,6 +56,7 @@ export const ProfilePage = ({ user, onUpdate }: ProfilePageProps) => {
               type="file"
               accept="image/*"
               onChange={handleFileChange}
+              aria-label="Seleziona immagine profilo"
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
             />
             {profileImage ? (

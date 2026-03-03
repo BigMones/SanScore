@@ -41,7 +41,7 @@ export const Navbar = ({ user, onLogout }: NavbarProps) => {
                   )}
                   <span className="text-sm opacity-70">{user.username}</span>
                 </div>
-                <button onClick={onLogout} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <button onClick={onLogout} aria-label="Esci" className="p-2.5 hover:bg-white/10 rounded-full transition-colors">
                   <LogOut size={20} />
                 </button>
               </div>
@@ -49,7 +49,12 @@ export const Navbar = ({ user, onLogout }: NavbarProps) => {
           )}
 
           <div className="md:hidden">
-            <button onClick={() => setIsOpen(!isOpen)} className="p-2">
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              aria-label={isOpen ? 'Chiudi menu' : 'Apri menu'}
+              aria-expanded={isOpen}
+              className="p-2.5"
+            >
               {isOpen ? <X /> : <Menu />}
             </button>
           </div>
